@@ -342,6 +342,53 @@ Felhasználói felületét, szükséges adatbázis-struktúráját és konfigur�
 
 **Paraméterek:** Nincsenek dokumentálva.
 
+### `turnstile`
+
+A `turnstile` modul a Cloudflare Turnstile szolgáltatást integrálja a regisztrációs és a meghívási űrlapokba. Beállított állapotban a regisztrációs űrlap a régi képes captcha helyett a Turnstile-widgetet jeleníti meg, a kiszolgáló pedig a Turnstile API-n ellenőrzi a beküldött tokent. Ha a modul nincs beállítva, a régi captcha marad tartalék megoldásként.
+
+A modul beállítása nem modulparaméterekkel, hanem a projektkonfigurációban (`local_vars.php.inc`) megadott állandókkal történik:
+
+```php
+define('CLOUDFLARE_TURNSTILE_SITE_KEY', 'your-site-key');
+define('CLOUDFLARE_TURNSTILE_SECRET_KEY', 'your-secret-key');
+```
+
+A modul csak akkor engedélyezett, ha a `CLOUDFLARE_TURNSTILE_SECRET_KEY` nem üres. Mindig adja meg mindkét állandót: ha a webhelykulcs hiányzik, a modul a titkos kulcsot használja webhelykulcsként. A widget szkriptje a `https://challenges.cloudflare.com/turnstile/v0/api.js` címről töltődik be, az ellenőrző kérést pedig a kiszolgáló küldi a Cloudflare-nek, ezért a kiszolgálónak kimenő HTTPS-hozzáférésre van szüksége.
+
+**Paraméterek:** Nincsenek.
+
+### `cms`
+
+A `cms` modul **Tartalom** csoportot ad a profilmenühöz **Oldalak** és **Bejegyzések** menüponttal. Célja a projektirányítópult és a Nextcloud API összekapcsolása. Az adminisztrációs oldal csak projektmesterek számára érhető el.
+
+A modul fejlesztés alatt áll (0.0.1-es verzió), adminisztrációs oldala még nem kínál beállításokat.
+
+**Paraméterek:** Nincsenek.
+
+### `ioc_bird_list`
+
+Az `ioc_bird_list` modul az IOC World Bird List madárlistát importálja a megosztott adatbázissémába. A projekt adminisztrációs oldalán lévő frissítőgomb letölti a törzslista XML-fájlját a `www.worldbirdnames.org` címről, létrehoz egy `shared.ioc_<verzió>` nevű táblát (a verzióban a pontok aláhúzásjelre cserélődnek), és feltölti a listával. A meglévő `shared.ioc_*` táblákat az adminisztrációs oldal listázza.
+
+Az adminisztrációs oldal csak projektmesterek számára érhető el. A lista letöltéséhez a kiszolgálónak kimenő HTTP-hozzáférésre van szüksége.
+
+**Paraméterek:** Nincsenek.
+
+### `natura2000`
+
+A `natura2000` modul Natura 2000 validációs felületet biztosít a felhasználói profilban. A projekt megfigyeléseit összeveti a `natura2000` adatbázissémában tárolt fajlistákkal és területekkel (például a `natura2000.sites`, a `natura2000.mdb_species` és a `natura2000.natura2000_fajok` táblával), és tartalmaz egy oldalt a kapcsolódó dokumentumok kezelésére.
+
+A modul ettől a sémától, valamint magyar terület- és fajadatoktól függ, ezért csak az erre előkészített projektekben használható. Felülete és üzenetei jelenleg csak magyarul érhetők el. A profiloldal a Tabulator könyvtárat az `unpkg.com` címről tölti be.
+
+**Paraméterek:** Nincsenek dokumentálva.
+
+### `pds_test_project_installer`
+
+A `pds_test_project_installer` modul átmeneti belépési pont azokhoz a projektekhez, amelyekben a régi PDS-tesztinstaller engedélyezve van. Már nem telepít és nem módosít projektadatokat. Az új PDS-tesztkatalógusokat a `protocol_installer` modullal kell telepíteni a PDS mobilűrlap-tesztkatalógus kiválasztásával. A modul letiltása érintetlenül hagyja a meglévő PDS-telepítéseket.
+
+A katalógus telepítése után engedélyezze a `pds_test_evaluator` modult a modulok adminisztrációjában.
+
+**Paraméterek:** Nincsenek.
+
 ## Táblaszintű modulok
 
 ### `box_load_selection`
@@ -1246,23 +1293,85 @@ Minden kulcs egy adatbázis-oszlop, minden érték pedig az adott oszlopon alkal
 
 Az átalakítások a megjelenítést befolyásolják, az alapul szolgáló tárolt értéket nem. Ellenőrizze, hogy az átalakított hivatkozások és értékek nem fednek-e fel korlátozott adatokat.
 
-## További dokumentációt igénylő modulok
+### `pds_test_evaluator`
 
-A jelenlegi OpenBioMaps-adattár olyan modulokat is tartalmaz, amelyek még nincsenek részletesen ismertetve ezen az oldalon. A telepített verziótól függően ezek a következők lehetnek:
+A `pds_test_evaluator` modul a PDS-űrlapfeltöltés kézi tesztfutásait rögzíti és értékeli. Inicializáláskor létrehozza a saját tábláit a projektsémában. Előbb a PDS mobilűrlap-tesztkatalógust kell telepíteni a `protocol_installer` modullal, különben a modul engedélyezése hibaüzenettel meghiúsul. Az adminisztrációs oldal előkészíti a tesztforgatókönyveket és a referenciaválaszokat.
 
-- `custom_data_check`;
-- `ebp`;
-- `fill_stable_with_column`;
-- `ioc_bird_list`;
-- `natura2000`;
-- `results_asHtmlTable`;
-- `results_asPDF`;
-- `results_asSHP`;
-- `service_envimap`;
-- `snap_to_grid`; és
-- `turnstile`.
+**Paraméterek:** Nincsenek.
 
-Ne következtessen egy modul működésére vagy paraméterformátumára kizárólag a fájlnevéből. Engedélyezés előtt vizsgálja felül a forrását, modulmetaadatait, SQL-telepítőfájlját, hozzáférés-ellenőrzéseit és adminisztrációs felületét.
+### `custom_data_check`
+
+A `custom_data_check` modul projektspecifikus ellenőrzéseket futtat a feltöltött adatokon. A paraméter értéke az ellenőrzőfüggvények nevének pontosvesszővel elválasztott listája. Az ellenőrzőfüggvényeket a modul forráskódjában, az egyéni függvények számára fenntartott blokkban kell megvalósítani, és `true` vagy `false` értéket adnak vissza. A `colour_rings` ellenőrzés példaként be van építve. A `select_list(` kezdetű nevű ellenőrzéseket a modul mindig elfogadja.
+
+A modul minimális logikájú keretrendszer, használatra kész ellenőrzéseket nem tartalmaz: új ellenőrzés hozzáadásához a modul forrását kell szerkeszteni.
+
+**Paraméterek:**
+
+```text
+check_function_1;check_function_2
+```
+
+### `results_asHtmlTable`
+
+A `results_asHtmlTable` modul a lekérdezés eredményét egyszerű HTML-táblázatként jeleníti meg. A munkamenet ideiglenes lekérdezéstáblájából legfeljebb 2000 sort olvas be. A standard eredménynézetek nem használják a modult; helyette használja a `results_asTable` modult.
+
+**Paraméterek:** Nincsenek.
+
+### `results_asPDF`
+
+A `results_asPDF` modul a lekérdezési eredményeket mPDF-fel előállított PDF-jelentésként exportálja. A jelentést név szerint kell kiválasztani, és az alkalmazás témájának `views/documents/report_<név>.mustache` Mustache-sablonjából jön létre. Az alapértelmezett téma az `observations` jelentést tartalmazza.
+
+További jelentések, vagy egy jelentés egyéni adat-előkészítése a projekt `local/includes/modules/results_asPDF_CM.php` fájljában adhatók meg, amely a `results_asPDF_CM` osztályt definiálja. A statikus `prepare_report_<név>($de)` metódus adja vissza a sablon adatait, az opcionális statikus `config_<név>()` metódus pedig az mPDF-konfigurációt.
+
+**Paraméterek:** Nincsenek.
+
+### `results_asSHP`
+
+A `results_asSHP` modul a lekérdezési eredményeket ESRI Shapefile-okként exportálja ZIP-archívumban. A lekérdezett táblához geometriaoszlopot kell megadni. Az eredményben talált minden geometriatípushoz egy Shapefile készül, a fájlokat pedig az `ogr2ogr` (GDAL) alakítja át EPSG:4326 vonatkoztatási rendszerben.
+
+Az `ogr2ogr` parancsnak telepítve kell lennie a kiszolgálón. Ha nincs a `PATH`-on, állítsa be a rendszerkonfigurációban a `GDAL_PATH` állandót a parancsot tartalmazó könyvtárra.
+
+**Paraméterek:** Nincsenek dokumentálva.
+
+### `service_envimap`
+
+A `service_envimap` modul összeköti a projektet az EnviMap szolgáltatással. Elküldi az érdeklődési terület GeoJSON-ját, listázza az elérhető szolgáltatásokat, lekéri egy szolgáltatáskérés állapotát, és szolgáltatás-hozzáférési hivatkozásokat és gombokat jelenít meg a felületen. Az adminisztrációs oldal csak projektmesterek számára érhető el.
+
+Az API alap-URL-je az `ENVIMAP_API_BASE` állandóval állítható be. Ha nincs megadva, a `https://api.envimap.hu/v1/` cím használatos.
+
+**Paraméterek:** Nincsenek dokumentálva.
+
+### `snap_to_grid`
+
+A `snap_to_grid` modul elavult, és a `grid_view` teljesen helyettesíti. A be nem jelentkezett látogatók számára az `ST_SnapToGrid` függvénnyel kerekíti a geometriaoszlopot. A paraméter két, pontosvesszővel elválasztott rácsméret; az alapértékek `0.13;0.09`. Új projektekben ne használja.
+
+**Paraméterek:**
+
+```text
+x_size;y_size
+```
+
+### `ebp`
+
+Az `ebp` modul EuroBirdPortal-modulvázlat. Egy táblaszintű modul sablonszerkezetét tartalmazza (fordítható szövegek, AJAX-függőségek, külső függőségek és egy példa SQL-t tartalmazó `init` metódus), de éles funkcionalitást nem. Éles projektben ne engedélyezze.
+
+**Paraméterek:** Nincsenek.
+
+## Háttérben futó segédszkriptek
+
+A modulkönyvtár alábbi fájljai nem modulok. Az alkalmazás indítja őket parancssori szkriptként a háttérben, ezért nem szabad engedélyezni vagy kézzel meghívni őket.
+
+### `fill_table_with_rows`
+
+A `results_asTable` aszinkron munkafolyamata. Azután tölti fel a találati táblát sorokkal részletekben, hogy az első sorok már megjelentek a böngészőben. Az első részlet alapértelmezés szerint 80 sor. A szkript csak parancssorból fut, a munkamenet-változókat környezeti változón keresztül kapja, amelyet induláskor eltávolít.
+
+### `fill_stable_with_column`
+
+A `results_asStable` aszinkron munkafolyamata. A háttérben tölti fel a stabil találati tábla oszlopait, és a munkamenetet egy base64-kódolású környezeti változóból állítja vissza.
+
+### `computation_fork`
+
+A `computation` modul parancssori szkriptje: csomagba rendezi a projekt `computational_packages` könyvtárának egy számítási csomagját, feltölti a beállított munkakiszolgálóra, és az alkalmazás gyorsítótárán keresztül jelzi az előrehaladást. A csomag beállításait a csomag `computation_conf.yml` fájljából olvassa, a munkakiszolgáló URL-jét pedig a `computation_state.yml` fájlba menti. A PHP YAML-bővítmény szükséges.
 
 ## Üzembe helyezési ellenőrzőlista
 

@@ -380,6 +380,84 @@ verified against the installed module version.
 
 **Parameters:** None documented.
 
+### `turnstile`
+
+The `turnstile` module integrates Cloudflare Turnstile into the registration
+and invitation forms. When it is configured, the registration form shows the
+Turnstile widget instead of the legacy image captcha, and the server verifies
+the submitted token against the Turnstile API. The legacy captcha remains the
+fallback when the module is not configured.
+
+The module is configured with constants in the project configuration
+(`local_vars.php.inc`), not with module parameters:
+
+```php
+define('CLOUDFLARE_TURNSTILE_SITE_KEY', 'your-site-key');
+define('CLOUDFLARE_TURNSTILE_SECRET_KEY', 'your-secret-key');
+```
+
+The module is enabled only if `CLOUDFLARE_TURNSTILE_SECRET_KEY` is not empty.
+Always define both constants: if the site key is missing, the module falls
+back to using the secret key as the site key. The widget script is loaded from
+`https://challenges.cloudflare.com/turnstile/v0/api.js`, and the verification
+request is sent from the server to Cloudflare, so the server needs outbound
+HTTPS access.
+
+**Parameters:** None.
+
+### `cms`
+
+The `cms` module adds a **Content** group with **Pages** and **Posts** entries
+to the profile menu. It is intended to connect the project dashboard with the
+Nextcloud API. The administration page is available to project masters only.
+
+The module is under development (version 0.0.1) and its administration page
+does not provide settings yet.
+
+**Parameters:** None.
+
+### `ioc_bird_list`
+
+The `ioc_bird_list` module imports the IOC World Bird List into the shared
+database schema. The project administration page has an update button that
+downloads the master list XML from `www.worldbirdnames.org`, creates a table
+named `shared.ioc_<version>` (dots in the version are replaced by underscores)
+and fills it with the list. The existing `shared.ioc_*` tables are listed on
+the administration page.
+
+The administration page is available to project masters only. The server needs
+outbound HTTP access to download the list.
+
+**Parameters:** None.
+
+### `natura2000`
+
+The `natura2000` module provides a Natura 2000 validation interface in the user
+profile. It compares the observations of the project with the species lists
+and sites stored in the `natura2000` database schema (for example the
+`natura2000.sites`, `natura2000.mdb_species` and `natura2000.natura2000_fajok`
+tables), and it includes a page for managing the related documents.
+
+The module depends on this schema and on Hungarian site and species data,
+therefore it is useful only in projects prepared for it. Its interface and
+messages are currently Hungarian only. The profile page loads the Tabulator
+library from `unpkg.com`.
+
+**Parameters:** None documented.
+
+### `pds_test_project_installer`
+
+The `pds_test_project_installer` module is a transition entry for projects that
+have the legacy PDS test installer enabled. It no longer installs or changes
+project data. New PDS test catalogues are installed with the
+`protocol_installer` module by selecting the PDS mobile form test catalogue.
+Disabling the module leaves existing PDS installations untouched.
+
+After installing the catalogue, enable `pds_test_evaluator` in module
+administration.
+
+**Parameters:** None.
+
 ## Table-level modules
 
 ### `box_load_selection`
@@ -1416,26 +1494,134 @@ that column.
 Transformations affect presentation, not the underlying stored value. Verify
 that transformed links and values do not reveal restricted data.
 
-## Modules requiring additional documentation
+### `pds_test_evaluator`
 
-The current OpenBioMaps repository contains modules that are not yet described
-in detail on this page. Depending on the installed version, these may include:
+The `pds_test_evaluator` module records and evaluates manual PDS form-upload
+test runs. On initialisation it creates its tables in the project schema. The
+PDS mobile form test catalogue must be installed with `protocol_installer`
+first; otherwise enabling the module fails with an error message. The
+administration page prepares test scenarios and reference choices.
 
-- `custom_data_check`;
-- `ebp`;
-- `fill_stable_with_column`;
-- `ioc_bird_list`;
-- `natura2000`;
-- `results_asHtmlTable`;
-- `results_asPDF`;
-- `results_asSHP`;
-- `service_envimap`;
-- `snap_to_grid`; and
-- `turnstile`.
+**Parameters:** None.
 
-Do not infer a module's behaviour or parameter format solely from its file
-name. Review its source, module metadata, SQL installation file, access
-checks, and administration interface before enabling it.
+### `custom_data_check`
+
+The `custom_data_check` module runs project-specific checks on uploaded data.
+The parameter value is a semicolon-separated list of check function names.
+Check functions are implemented in the module source, in the block reserved for
+custom functions, and return `true` or `false`. The `colour_rings` check is
+built in as an example. Checks whose name starts with `select_list(` are always
+accepted.
+
+The module is a framework with minimal logic and no ready-to-use checks:
+adding a check requires editing the module source.
+
+**Parameters:**
+
+```text
+check_function_1;check_function_2
+```
+
+### `results_asHtmlTable`
+
+The `results_asHtmlTable` module renders the query result as a simple HTML
+table. It reads at most 2000 rows from the temporary query table of the
+session. The module is not used by the standard result views; use
+`results_asTable` instead.
+
+**Parameters:** None.
+
+### `results_asPDF`
+
+The `results_asPDF` module exports query results as a PDF report generated with
+mPDF. The report is selected by name and rendered from the Mustache template
+`views/documents/report_<name>.mustache` of the application theme. The default
+theme provides the `observations` report.
+
+Additional reports, or custom data preparation for a report, can be added in
+the project file `local/includes/modules/results_asPDF_CM.php`, which defines
+the `results_asPDF_CM` class. A static `prepare_report_<name>($de)` method
+returns the template data, and an optional static `config_<name>()` method
+returns the mPDF configuration.
+
+**Parameters:** None.
+
+### `results_asSHP`
+
+The `results_asSHP` module exports query results as ESRI Shapefiles in a ZIP
+archive. A geometry column must be defined for the queried table. One
+Shapefile is written for each geometry type found in the result, and the files
+are converted with `ogr2ogr` (GDAL) in the EPSG:4326 reference system.
+
+The `ogr2ogr` command must be installed on the server. If it is not on the
+`PATH`, set the `GDAL_PATH` constant in the system configuration to the
+directory that contains it.
+
+**Parameters:** None documented.
+
+### `service_envimap`
+
+The `service_envimap` module connects the project to the EnviMap service. It
+sends the GeoJSON of the area of interest, lists the available services,
+fetches the status of a service request, and shows service access links and
+buttons in the interface. The administration page is available to project
+masters only.
+
+The API base URL can be set with the `ENVIMAP_API_BASE` constant. If it is not
+defined, `https://api.envimap.hu/v1/` is used.
+
+**Parameters:** None documented.
+
+### `snap_to_grid`
+
+The `snap_to_grid` module is deprecated and fully replaced by `grid_view`. For
+visitors who are not logged in, it rounds the geometry column with
+`ST_SnapToGrid`. The parameter is two semicolon-separated grid sizes; the
+defaults are `0.13;0.09`. Do not use it in new projects.
+
+**Parameters:**
+
+```text
+x_size;y_size
+```
+
+### `ebp`
+
+The `ebp` module is a EuroBirdPortal module skeleton. It contains the template
+structure of a table-level module (translatable strings, AJAX dependencies,
+external dependencies and an `init` method with example SQL) but no
+production functionality. Do not enable it in a production project.
+
+**Parameters:** None.
+
+## Background helper scripts
+
+The following files in the module directory are not modules. They are
+command-line scripts started by the application in the background, and they
+must not be enabled or called manually.
+
+### `fill_table_with_rows`
+
+Asynchronous worker of `results_asTable`. It fills the result table with rows
+in batches after the first rows were returned to the browser. The first batch
+is 80 rows by default. The script runs only from the command line, and it
+receives the session variables through an environment variable that is removed
+on start.
+
+### `fill_stable_with_column`
+
+Asynchronous worker of `results_asStable`. It fills the columns of the stable
+result table in the background and restores the session from a base64-encoded
+environment variable.
+
+### `computation_fork`
+
+Command-line script of the `computation` module that packages a computational
+package from the `computational_packages` directory of the project, uploads it
+to the configured working server and reports the progress through the
+application cache. The package settings are read from the
+`computation_conf.yml` file of the package, and the working server URL is saved
+to `computation_state.yml`. The PHP YAML extension is required.
 
 ## Deployment checklist
 

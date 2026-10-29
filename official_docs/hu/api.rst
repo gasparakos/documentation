@@ -18,6 +18,111 @@ Példa Swagger UI felületre:
 
 `<https://openbiomaps.org/projects/checkitout/api/v3/swagger-ui>`_
 
+Az OpenBioMaps Project API az ``obm-project-api`` tárolóban fejlesztett REST/GraphQL háttérrendszer, amely az OpenBioMaps-projekteket külső kliensekkel, például mobilalkalmazásokkal és R-szkriptekkel köti össze. Minden válasz JSON formátumú. Minden projektnek saját API-példánya van.
+
+Alapútvonal
+-----------
+
+Az API alapútvonala ``{obm-server-url}/projects/{project-name}/api``. A verzióelőtag az alábbi végpontútvonalak része, például ``https://openbiomaps.org/projects/checkitout/api/v3/forms``.
+
+Hitelesítés
+-----------
+
+A védett végpontok az OBM-kiszolgáló OAuth 2 hozzáférési tokenjét használják (lásd lentebb az OAUTH szakaszt). Minden védett végponthoz a felsorolt hatókörök (scope) valamelyike szükséges. Új hozzáférési token a ``/v3/auth/refresh`` címen kérhető.
+
+Végpontok
+---------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 40 42
+
+   * - Név
+     - URI
+     - Szükséges hatókörök (bármelyik)
+   * - OpenAPI
+     - ``/v3/specification``
+     - nyilvános
+   * - Swagger UI, Scalar UI
+     - ``/v3/swagger-ui``, ``/v3/scalar-ui``
+     - nyilvános
+   * - userProjects
+     - ``/v3/projects``
+     - apiprofile, webprofile, get_project, get_project_list
+   * - projectDetails
+     - ``/v3/project-details``
+     - apiprofile, webprofile, get_project, get_project_vars
+   * - projectForms
+     - ``/v3/forms``
+     - apiprofile, webprofile, get_form, get_form_list
+   * - formDetails
+     - ``/v3/forms/{formId}``
+     - apiprofile, webprofile, get_form, get_form_data, put_data
+   * - messageCounter
+     - ``/v3/message-count``
+     - apiprofile, webprofile, get_message_count
+   * - tracklogs
+     - ``/v3/tracklogs``
+     - apiprofile, webprofile, tracklog
+   * - dataTables
+     - ``/v3/data-tables``
+     - apiprofile, webprofile, get_tables
+   * - dataTable
+     - ``/v3/data-tables/{schema}/{dataTable}``
+     - az útválasztó nem ellenőriz hatókört
+   * - columnUniqueValues
+     - ``/v3/data-tables/{schema}/{dataTable}/{column}/unique-values``
+     - az útválasztó nem ellenőriz hatókört
+   * - getData
+     - ``/v3/get-data``
+     - apiprofile, webprofile, get_data
+   * - getRules
+     - ``/v3/get-rules``
+     - apiprofile, webprofile, get_data
+   * - sharedGeometries
+     - ``/v3/shared-geometries``
+     - apiprofile, webprofile, get_data
+   * - getPublicData
+     - ``/v3/get-public-data``
+     - nyilvános
+   * - authRefresh
+     - ``/v3/auth/refresh``
+     - nyilvános
+   * - statistics
+     - ``/v3/statistics/calculate``
+     - nyilvános
+
+A ``/v3/shared-geometries`` végpont a megosztott geometriákat GeoJSON FeatureCollectionként streameli, kurzoralapú lapozással (oldalanként legfeljebb 1000 elem). Térbeli adatfájlokat (Shapefile, GeoPackage, KML, KMZ) is fogad, amelyeket az ``ogr2ogr`` importál a megosztott geometriák táblájába. A megosztott geometriák módosítása még nincs megvalósítva.
+
+A ``/v3/statistics/calculate`` végpont a felhasználó által megadott érdeklődési terület fajainak és rekordjainak számát adja vissza. A bemeneti geometria WKT formátumú, WGS84 (SRID 4326) POLYGON vagy MULTIPOLYGON lehet.
+
+A ``/v3/get-data`` és a ``/v3/get-public-data`` GraphQL-végpont. Szűrőoperátoraikat, lekérdezéstípusaikat és válaszsémáikat a `GraphQL User Guide <https://gitlab.com/openbiomaps/api/obm-project-api/-/blob/main/GraphQLUserGuide.md>`_ ismerteti.
+
+A Project API telepítése
+------------------------
+
+A Project API még nem része az ``obm-composer`` telepítésnek, ezért a régebbi és a kézzel telepített kiszolgálókon kézi beállítás szükséges. Az API-hoz PHP 8.3 vagy újabb, Composer, valamint PostgreSQL 13 vagy újabb PostGIS-szel szükséges.
+
+1. Töltse le az ``obm-project-api`` tároló kiadását, és telepítse a függőségeket a ``composer install --no-dev`` paranccsal.
+2. Másolja a fájlokat az OBM-projektkönyvtár ``api`` mappájába (``projects/{project-name}/api``). Minden projekthez saját másolat kell.
+3. Adja hozzá a következő átírási szabályt a projekt ``.htaccess`` fájljához, közvetlenül a ``RewriteEngine On`` sor után:
+
+   .. code-block:: apacheconf
+
+      RewriteCond %{REQUEST_URI} ^/projects/{YOUR_OBM_PROJECT_NAME}/api/(.*)?
+      RewriteCond %{REQUEST_URI} !^/projects/{YOUR_OBM_PROJECT_NAME}/api/index\.php
+      RewriteRule ^api/?(.*)$ api/index.php/$1 [NC,L,QSA]
+
+   Ha a projekt saját tartományon érhető el, ezt használja helyette:
+
+   .. code-block:: apacheconf
+
+      RewriteCond %{REQUEST_URI} !^/api/index\.php
+      RewriteRule ^api/?(.*)$ api/index.php/$1 [NC,L,QSA]
+
+4. Szükség esetén hozzon létre egy ``.env`` fájlt az API mappájában az alapértékek felülírásához. Az API enélkül is működik. A támogatott kulcsok: ``ENV`` (``PROD``, ``STAGING``, ``DEV``, ``TESTING``; alapérték ``PROD``), ``LOG_LEVEL`` (``DEBUG``, ``INFO``, ``WARNING``, ``ERROR``, ``CRITICAL``; alapérték ``INFO``), ``LOG_FORMAT`` (``text`` vagy ``json``; alapérték ``text``), ``LOG_FILE`` (alapérték ``php://stdout``), ``SYSTEM_VARS`` (alapérték ``/etc/openbiomaps/system_vars.php.inc``) és ``LOCAL_VARS`` (alapérték az API mappa szülőkönyvtárában lévő ``local_vars.php.inc``).
+5. Az új API-ra irányított PDS-hívásokhoz lásd az ``obm-project-api`` README beállítási megjegyzéseit.
+
 .. _old-api:
 
 PDS API

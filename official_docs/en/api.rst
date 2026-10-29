@@ -18,6 +18,138 @@ Swagger UI example:
 
 `<https://openbiomaps.org/projects/checkitout/api/v3/swagger-ui>`_
 
+The OpenBioMaps Project API is a REST/GraphQL backend, developed in the
+``obm-project-api`` repository, that connects OpenBioMaps projects with
+external clients such as mobile applications and R scripts. All responses are
+JSON. Every project has its own API instance.
+
+Base route
+----------
+
+The base route of the API is ``{obm-server-url}/projects/{project-name}/api``.
+The version prefix is part of the endpoint paths below, for example
+``https://openbiomaps.org/projects/checkitout/api/v3/forms``.
+
+Authentication
+--------------
+
+Protected endpoints use the OAuth 2 access token of the OBM server (see the OAUTH section below). Each protected endpoint requires one of the listed
+scopes. A new access token can be requested at ``/v3/auth/refresh``.
+
+Endpoints
+---------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 40 42
+
+   * - Name
+     - URI
+     - Required scopes (any of)
+   * - OpenAPI
+     - ``/v3/specification``
+     - public
+   * - Swagger UI, Scalar UI
+     - ``/v3/swagger-ui``, ``/v3/scalar-ui``
+     - public
+   * - userProjects
+     - ``/v3/projects``
+     - apiprofile, webprofile, get_project, get_project_list
+   * - projectDetails
+     - ``/v3/project-details``
+     - apiprofile, webprofile, get_project, get_project_vars
+   * - projectForms
+     - ``/v3/forms``
+     - apiprofile, webprofile, get_form, get_form_list
+   * - formDetails
+     - ``/v3/forms/{formId}``
+     - apiprofile, webprofile, get_form, get_form_data, put_data
+   * - messageCounter
+     - ``/v3/message-count``
+     - apiprofile, webprofile, get_message_count
+   * - tracklogs
+     - ``/v3/tracklogs``
+     - apiprofile, webprofile, tracklog
+   * - dataTables
+     - ``/v3/data-tables``
+     - apiprofile, webprofile, get_tables
+   * - dataTable
+     - ``/v3/data-tables/{schema}/{dataTable}``
+     - no scope check in the router
+   * - columnUniqueValues
+     - ``/v3/data-tables/{schema}/{dataTable}/{column}/unique-values``
+     - no scope check in the router
+   * - getData
+     - ``/v3/get-data``
+     - apiprofile, webprofile, get_data
+   * - getRules
+     - ``/v3/get-rules``
+     - apiprofile, webprofile, get_data
+   * - sharedGeometries
+     - ``/v3/shared-geometries``
+     - apiprofile, webprofile, get_data
+   * - getPublicData
+     - ``/v3/get-public-data``
+     - public
+   * - authRefresh
+     - ``/v3/auth/refresh``
+     - public
+   * - statistics
+     - ``/v3/statistics/calculate``
+     - public
+
+The ``/v3/shared-geometries`` endpoint streams the shared geometries as a
+GeoJSON FeatureCollection with cursor based pagination (at most 1000 features
+per page). It also accepts spatial data files (Shapefile, GeoPackage, KML,
+KMZ) that are imported into the shared geometries table with ``ogr2ogr``.
+Updating shared geometries is not implemented yet.
+
+The ``/v3/statistics/calculate`` endpoint returns the number of species and
+records for a user supplied area of interest. The input geometry must be a
+WGS84 (SRID 4326) POLYGON or MULTIPOLYGON in WKT.
+
+``/v3/get-data`` and ``/v3/get-public-data`` are GraphQL endpoints. Their
+filter operators, query types and response schemas are described in the
+`GraphQL User Guide <https://gitlab.com/openbiomaps/api/obm-project-api/-/blob/main/GraphQLUserGuide.md>`_.
+
+Installing the Project API
+--------------------------
+
+The Project API is not part of the ``obm-composer`` installation yet, so older
+and manually installed servers need a manual setup. The API needs PHP 8.3 or
+newer, Composer, and PostgreSQL 13 or newer with PostGIS.
+
+1. Download the release of the ``obm-project-api`` repository and install the
+   dependencies with ``composer install --no-dev``.
+2. Copy the files into the ``api`` folder of the OBM project folder
+   (``projects/{project-name}/api``). Each project needs its own copy.
+3. Add the following rewrite rule to the ``.htaccess`` file of the project,
+   directly after the ``RewriteEngine On`` line:
+
+   .. code-block:: apacheconf
+
+      RewriteCond %{REQUEST_URI} ^/projects/{YOUR_OBM_PROJECT_NAME}/api/(.*)?
+      RewriteCond %{REQUEST_URI} !^/projects/{YOUR_OBM_PROJECT_NAME}/api/index\.php
+      RewriteRule ^api/?(.*)$ api/index.php/$1 [NC,L,QSA]
+
+   If the project has its own domain, use this instead:
+
+   .. code-block:: apacheconf
+
+      RewriteCond %{REQUEST_URI} !^/api/index\.php
+      RewriteRule ^api/?(.*)$ api/index.php/$1 [NC,L,QSA]
+
+4. Optionally create a ``.env`` file in the API folder to override the
+   defaults. The API works without it. The supported keys are ``ENV``
+   (``PROD``, ``STAGING``, ``DEV``, ``TESTING``; default ``PROD``),
+   ``LOG_LEVEL`` (``DEBUG``, ``INFO``, ``WARNING``, ``ERROR``, ``CRITICAL``;
+   default ``INFO``), ``LOG_FORMAT`` (``text`` or ``json``; default ``text``),
+   ``LOG_FILE`` (default ``php://stdout``), ``SYSTEM_VARS`` (default
+   ``/etc/openbiomaps/system_vars.php.inc``) and ``LOCAL_VARS`` (default
+   ``local_vars.php.inc`` in the parent directory of the API folder).
+5. For the PDS calls redirected to the new API, see the setup notes in the
+   ``obm-project-api`` README.
+
 .. _old-api:
 
 PDS API

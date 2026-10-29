@@ -136,6 +136,22 @@ After the configuration has been confirmed, the installer:
 
 The installation is complete when the installer reports successful completion.
 
+### Docker services
+
+The `docker-compose.yml` file of the installation defines the following services:
+
+| Service | Purpose |
+|---|---|
+| `app` | The OpenBioMaps web application (Apache, PHP). Publishes the HTTP and HTTPS ports selected during the installation. |
+| `background-worker` | Runs the central background task worker (for example the e-mail queue) from the same application image. See [Central background task worker](server_administration.html#central-background-worker). |
+| `mapserver` | MapServer for the map layers of the projects. |
+| `biomaps_db` | PostgreSQL/PostGIS database server with the `biomaps` and `gisdata` databases. |
+| `obm-server-api` | The OpenBioMaps server API, published on port `9001`. |
+| `adminer` | Web based database manager, published on port `9882`. |
+| `memcached` | Cache server used by the application. |
+
+All services share the internal `obm_back` network.
+
 
 ## Visit your OBM app
 
@@ -149,7 +165,7 @@ If you installed the docker in your local computer you can access the services a
 
 Update your server and sablon project following this guide:
 
-:doc:New server installation tutorial <../server_install>
+[New server installation tutorial](server_install.html)
 
 
 ## Database access
@@ -160,7 +176,7 @@ Adminer: [http://YOUR_SERVER_NAME:9882/](http://YOUR_SERVER_NAME:9882/)
 
   Adminer notes:
   
-    server = openbiomaps_biomaps_db_1
+    server = biomaps_db   (the service name; the network aliases `biomaps` and `gisdata` also work)
     db_name = biomaps | gisadmin
     db_user = biomapsadmin | sablon_admin | YOUR_PROJECT_admin
     password = (check the .env file for the biomapsadmin's password or the local_vars.php.inc for ..._admin's password)
@@ -217,27 +233,36 @@ You can regenerate the Supervisor's password with `./obm_post_install.sh update 
 
 
 ## Updates: update application with Docker
-These commands are safe, they do not destroy the changes made through the OpenBioMaps web interface.
+
+Run the commands in the installation directory (`/srv/docker/openbiomaps`). These commands are safe, they do not destroy the changes made through the OpenBioMaps web interface.
 
 ```console
-foo@bar:~$ docker-compose pull 
-Pulling biomaps_db ... done
-Pulling mapserver  ... done
-Pulling app        ... done
-## Pulling phppgadmin ... done -- There is no PhpPgAdmin currently 
-Pulling adminer    ... done
-
-foo@bar:~$ docker-compose up -d
-Creating obm-composer_biomaps_db_1 ... done
-Creating obm-composer_mapserver_1  ... done
-Creating obm-composer_adminer_1    ... done
-## Creating obm-composer_phppgadmin_1 ... done
-Creating obm-composer_app_1        ... done
+foo@bar:~$ docker compose pull
+foo@bar:~$ docker compose up -d
 ```
 
-Update only one container
+The installer supports both the Docker Compose plugin (`docker compose`) and the legacy standalone command (`docker-compose`). On older hosts replace `docker compose` with `docker-compose` in the commands of this page.
+
+`docker compose pull` downloads the new images of all services, including `app`, `background-worker` and `obm-server-api`. `docker compose up -d` recreates the containers whose image has changed.
+
+Update only one container:
+
 ```console
-foo@bar:~$ docker-compose up -d app
+foo@bar:~$ docker compose pull app
+foo@bar:~$ docker compose up -d app
+```
+
+The `background-worker` uses the same application image as `app`. After an application update recreate both services:
+
+```console
+foo@bar:~$ docker compose up -d app background-worker
+```
+
+Check the state of the services and the logs of the background worker:
+
+```console
+foo@bar:~$ docker compose ps
+foo@bar:~$ docker compose logs -f background-worker
 ```
 
 ## Email setting for projects
@@ -306,7 +331,7 @@ Here's how to find out docker networks and ip addresses:
 ```console
 docker container ls
 ```
-Search for obm-composer_app_1
+Search for the `app` container (its name ends with `app_1` or `app-1`, depending on the Docker Compose version)
 
 ```console
 docker inspect xxxxx_obm-composer_app_1
@@ -522,39 +547,39 @@ psql: FATAL:  no pg_hba.conf entry for host "xxxxxxx", user "gisadmin", database
 ### Stopping docker
 
 ```console
-foo@bar:~$ docker-compose down
+foo@bar:~$ docker compose down
 ```
 
 ### Drop everything (including data and databases)
 
 ```console
-foo@bar:~$ docker-compose down -v
+foo@bar:~$ docker compose down -v
 ```
 
 
 ### Shell access of the system in the container image
 
 ```console
-foo@bar:~$ docker-compose exec app bash
+foo@bar:~$ docker compose exec app bash
 ```
-Here we accessed the **app** service. See service names in docker-compose.yml file.
+Here we accessed the **app** service. See service names in the docker-compose.yml file.
 
 
 ### Reading logs
 
 ```console
-foo@bar:~$ docker-compose logs -f app
+foo@bar:~$ docker compose logs -f app
 ```
 
 ### Using pgtop
 
-docker-compose exec -u postgres <service_name> pg_top
+docker compose exec -u postgres <service_name> pg_top
 
 ### Restart app
 
 Do not restart Apache from the Docker shell, but from outside
 ```console
-foo@bar:~$ docker-compose restart app
+foo@bar:~$ docker compose restart app
 ```
 
 ### Remove huge amounts of old, not used docker images

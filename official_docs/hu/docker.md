@@ -1,98 +1,189 @@
 # Virtuális szerver Docker használatával
 
-Ez az OpenBioMaps jelenleg támogatott és naprakész virtuáliskörnyezet-kiadása.
+Ez az OpenBioMaps jelenleg támogatott, Dockerre épülő telepítése.
 
-Teszteléshez, fejlesztéshez és éles környezetben egyaránt megfelelő.
+A Docker-telepítés **tesztelési, fejlesztési és éles környezetben** egyaránt használható. A telepítőszkriptek az OpenBioMaps szolgáltatásait és azok függőségeit egy Docker Compose-környezetben konfigurálják.
 
-Az obm-docker használatához négy lépés szükséges:
+## A telepítés áttekintése
 
-1. A docker-compose telepítése.
-2. Az obm-docker lemezkép beszerzése.
-3. A Docker konfigurálása a gazdagép sajátosságainak megfelelően, például SSL és SMTP használatához.
-4. A Docker-környezet elindítása.
+Az OpenBioMaps új Docker-telepítése a következő fő lépésekből áll:
 
+1. **A szerver előkészítése, valamint a Docker Engine és a Docker Compose telepítése**
+2. **Az OpenBioMaps Docker-telepítőfájljainak letöltése**
+3. **A telepítés beállítása a szerverhez**
+4. **Az OpenBioMaps-telepítő futtatása**
 
-## A Docker és a Compose előkészítése és telepítése
+A telepítő felismeri az elérhető Docker Compose-megvalósítást, és támogatja az aktuális Docker Compose-bővítményt (`docker compose`) és a régi, önálló Compose-parancsot (`docker-compose`) is.
 
-```console
-sudo curl -L https://github.com/docker/compose/releases/download/1.29.2/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
+## A Docker és a Docker Compose előkészítése
 
-sudo chmod +x /usr/local/bin/docker-compose
+Linuxos szerverre és támogatott Docker-telepítésre van szükség.
 
+Új Debian-telepítés esetén az ajánlott módszer a Docker Engine telepítése a hivatalos Docker APT-tárolóból. Ez a Docker Compose-bővítményt is biztosítja.
+
+Az aktuális telepítési útmutatóért lásd a hivatalos Docker-dokumentációt:
+
+[Docker Engine telepítése Debianra](https://docs.docker.com/engine/install/debian/)
+
+A Docker telepítése után ellenőrizze, hogy a Docker-démon fut:
+
+```bash
+sudo systemctl status docker
+```
+
+Tesztelje a Docker-telepítést:
+
+```bash
+sudo docker run hello-world
+```
+
+Telepítse a Docker Compose-bővítményt, ha az nem települt a Docker Engine-nel együtt:
+
+```bash
+sudo apt update
+sudo apt install docker-compose-plugin
+```
+
+Ellenőrizze a telepített Compose verzióját:
+
+```bash
+docker compose version
+```
+
+A várt parancs:
+
+```text
+docker compose version
+```
+
+nem a régebbi, önálló:
+
+```text
 docker-compose --version
 ```
 
-docker-compose version 1.29.2, build f46880fe
+A Docker Compose telepítésével kapcsolatos további információért lásd:
 
-A Docker telepítésével kapcsolatos további információért keresse fel ezt az
-oldalt:
+[A Docker Compose-bővítmény telepítése](https://docs.docker.com/compose/install/linux/)
 
-[https://docs.docker.com/compose/install/](https://docs.docker.com/compose/install/)
+### Opcionális: a Docker használata `sudo` nélkül
 
+Alapértelmezés szerint a Docker-parancsokhoz rendszergazdai jogosultság szükséges. Ha a Docker-nek az aktuális felhasználó számára `sudo` nélkül is elérhetőnek kell lennie, adja hozzá a felhasználót a `docker` csoporthoz:
 
-## OpenBioMaps-példány telepítése és beállítása
+```bash
+sudo usermod -aG docker $USER
+```
 
-Egyetlen lépésben:
+A csoporttagság érvénybelépéséhez jelentkezzen ki, majd újra be.
 
-``curl -s https://gitlab.com/openbiomaps/docker/obm-composer/-/raw/master/install.sh > /tmp/install.sh && sudo bash /tmp/install.sh``
+További információért lásd:
+
+[A Docker telepítés utáni lépései Linuxon](https://docs.docker.com/engine/install/linux-postinstall/)
+
+## Az OpenBioMaps-telepítés indítása
+
+Az OpenBioMaps Docker-telepítését közvetlenül a telepítőszkript indítja. A Docker-tárolót nem szükséges kézzel klónozni.
+
+### A telepítő letöltése és futtatása
+
+Azon a szerveren, amelyre az OpenBioMaps-t telepíteni kívánja, futtassa:
+
+```bash
+curl -s https://gitlab.com/openbiomaps/docker/obm-composer/-/raw/master/install.sh > /tmp/install.sh && sudo bash /tmp/install.sh
+```
+
+A telepítő végigvezeti a telepítési folyamaton.
+
+### A szerver beállítása
+
+A telepítés során a telepítő felismeri a gazdagépen elérhető szervercímeket, például:
+
+* a helyi IP-címet
+* a nyilvános IP-címet, ha elérhető
+* a teljesen minősített gépnevet, ha elérhető
+
+A telepítő megjeleníti a felismert címeket, és javasol egy megfelelő alapértelmezett szervercímet. A rendszergazda elfogadhatja a javasolt címet, vagy megadhat egy másikat, amely megfelel a telepítési környezetnek.
+
+A telepítő a rendelkezésre álló HTTP- és HTTPS-portokat is felismeri. Ha a szabványos portok (`80` és `443`) már foglaltak, szabad alternatív portok választhatók.
+
+A létrehozott konfiguráció a telepítési könyvtár `.env` fájljába kerül. Ez tartalmazza a kiválasztott szervercímet, a HTTP/HTTPS-portokat, valamint a Docker-környezethez szükséges jelszavakat és egyéb értékeket.
+
+### Szerverspecifikus beállítások
+
+A telepítési környezettől függően az OpenBioMaps-telepítőn kívül további beállításokra lehet szükség, például:
+
+* az OpenBioMaps-tartomány DNS-beállítása
+* tűzfalszabályok
+* SSL/TLS-tanúsítványok
+* SMTP-/levelezőszerver-beállítások
+* fordított proxy beállítása
+* a kiválasztott HTTP/HTTPS-portok külső elérhetősége
+
+Ezek a beállítások a szerver- és hálózati környezettől függenek, és nem minden telepítéshez szükségesek.
+
+### A telepítési folyamat
+
+A beállítások jóváhagyása után a telepítő:
+
+1. előkészíti a Docker-környezetet;
+2. elindítja a szükséges Docker-szolgáltatásokat;
+3. megvárja, amíg az adatbázisok elérhetővé válnak;
+4. inicializálja az OpenBioMaps-adatbázisokat;
+5. elvégzi a szükséges telepítés utáni műveleteket;
+6. telepíti vagy frissíti a beépített OpenBioMaps-projekteket és egyéb rendszerkomponenseket;
+7. rögzíti a telepítés sikeres befejezését.
+
+A telepítés akkor fejeződött be, amikor a telepítő sikeres befejezést jelez.
+
+### Docker-szolgáltatások
+
+A telepítés `docker-compose.yml` fájlja a következő szolgáltatásokat definiálja:
+
+| Szolgáltatás | Cél |
+|---|---|
+| `app` | Az OpenBioMaps webalkalmazás (Apache, PHP). A telepítés során kiválasztott HTTP- és HTTPS-portokat teszi közzé. |
+| `background-worker` | A központi háttérfeladat-feldolgozót futtatja (például az e-mail-sort) ugyanabból az alkalmazás-lemezképből. Lásd: [Központi háttérfeladat-feldolgozó](server_administration.html#central-background-worker). |
+| `mapserver` | MapServer a projektek térképrétegeihez. |
+| `biomaps_db` | PostgreSQL/PostGIS adatbázis-kiszolgáló a `biomaps` és a `gisdata` adatbázissal. |
+| `obm-server-api` | Az OpenBioMaps szerver-API, a `9001` porton elérhető. |
+| `adminer` | Webes adatbázis-kezelő, a `9882` porton elérhető. |
+| `memcached` | Az alkalmazás által használt gyorsítótár-kiszolgáló. |
+
+Az összes szolgáltatás a belső `obm_back` hálózatot használja.
 
 ## Az OpenBioMaps-alkalmazás megnyitása
 
-[http://YOUR_SERVER_NAME:9080/](http://YOUR_SERVER_NAME:9080/)
+[http://YOUR_SERVER_NAME/](http://YOUR_SERVER_NAME/)
 
-[http://YOUR_SERVER_NAME:9080/projects/sablon/](http://YOUR_SERVER_NAME:9080/projects/sablon/)
+[http://YOUR_SERVER_NAME/projects/sablon/](http://YOUR_SERVER_NAME/projects/sablon/)
 
-Jelentkezzen be a sablonadatbázisba a *valaki@openbiomaps.org*
-felhasználónévvel és az *abc123* jelszóval. Az első bejelentkezést követően
-változtassa meg ezt az alapértelmezett jelszót.
+Jelentkezzen be a sablonadatbázisba a *valaki@openbiomaps.org* felhasználónévvel és az *abc123* jelszóval. Az első bejelentkezést követően változtassa meg ezt az alapértelmezett jelszót.
 
-Ha a Dockert a helyi számítógépére telepítette, a fenti szolgáltatások
-localhost használatával érhetők el.
+Ha a Dockert a helyi számítógépére telepítette, a fenti szolgáltatások localhost használatával érhetők el.
 
 A szerver és a sablonprojekt frissítéséhez kövesse ezt az útmutatót:
 
-:doc:Új szerver telepítési útmutató <../server_install>
+[Új szerver telepítési útmutató](server_install.html)
 
 
 ## Adatbázis-hozzáférés
 
-A PostgreSQL-adatbázis az alábbi előre konfigurált online
-adatbázis-kezelő alkalmazásokon keresztül érhető el. Ez azonban a gazdagép
-és a Docker közötti kapcsolattól is függ.
-
-A PhpPgAdmin jelenleg nem érhető el.
-
-*PhpPgAdmin: [http://YOUR_SERVER_NAME:9881/](http://YOUR_SERVER_NAME:9881/)*
-
-  Megjegyzések a PhpPgAdmin használatához:
-
-  Nagyon felhasználóbarát eszköz, jelenleg azonban nincs karbantartva, ezért
-  saját kiadást kell létrehoznunk, vagy meg kell várnunk, amíg valaki más
-  elkészíti.
+A PostgreSQL-adatbázis az alábbi előre konfigurált online adatbázis-kezelő alkalmazáson keresztül érhető el. Ez azonban a gazdagép és a Docker közötti kapcsolattól is függ.
 
 Adminer: [http://YOUR_SERVER_NAME:9882/](http://YOUR_SERVER_NAME:9882/)
 
   Megjegyzések az Adminer használatához:
 
-    server = openbiomaps_biomaps_db_1
+    server = biomaps_db   (the service name; the network aliases `biomaps` and `gisdata` also work)
     db_name = biomaps | gisadmin
     db_user = biomapsadmin | sablon_admin | YOUR_PROJECT_admin
     password = (check the .env file for the biomapsadmin's password or the local_vars.php.inc for ..._admin's password)
 
-Az adatbázis a *biomapsadmin* felhasználóval kezelhető. Ez egy
-szuperfelhasználó. Jelszavát a rendszer a telepítés során hozza létre, és a
-/srv/docker/openbiomaps/.env fájlban található.
+Az adatbázis a *biomapsadmin* felhasználóval kezelhető. Ez egy szuperfelhasználó. Jelszavát a rendszer a telepítés során hozza létre, és a /srv/docker/openbiomaps/.env fájlban található.
 
-A MapServer mapfile adatbázis-kapcsolatához szükséges titkosított jelszó a
-/var/lib/openbiomaps/maps/access.key fájllal hozható létre.
+A MapServer mapfile adatbázis-kapcsolatához szükséges titkosított jelszó a /var/lib/openbiomaps/maps/access.key fájllal hozható létre.
 
-Az OpenBioMaps alapértelmezés szerint két adatbázist hoz létre. A
-``biomaps`` a rendszer működéséhez szükséges táblákat tartalmazza, míg a
-``gisdata`` a projektadatbázisok adattábláit tartalmazza. Más szóval az
-utóbbi tárolja a felhasználók által gyűjtött adatokat, és ehhez
-kapcsolódhatnak a felhasználók. A ``biomapsadmin`` mindkét adatbázisban
-szuperfelhasználó. Jelszavát a rendszer a telepítés során hozza létre, és a
-/srv/docker/openbiomaps/.env fájlban tárolja.
+Az OpenBioMaps alapértelmezés szerint két adatbázist hoz létre. A ``biomaps`` a rendszer működéséhez szükséges táblákat tartalmazza, míg a ``gisdata`` a projektadatbázisok adattábláit tartalmazza. Más szóval az utóbbi tárolja a felhasználók által gyűjtött adatokat, és ehhez kapcsolódhatnak a felhasználók. A ``biomapsadmin`` mindkét adatbázisban szuperfelhasználó. Jelszavát a rendszer a telepítés során hozza létre, és a /srv/docker/openbiomaps/.env fájlban tárolja.
 
 ## Docker-karbantartó alkalmazás
 
@@ -148,29 +239,35 @@ paranccsal hozható létre újból.
 
 ## Frissítések: az alkalmazás frissítése Docker használatával
 
-Ezek a parancsok biztonságosak, és nem törlik az OpenBioMaps webes
-felületén végzett módosításokat.
+A parancsokat a telepítési könyvtárban (`/srv/docker/openbiomaps`) futtassa. Ezek a parancsok biztonságosak, nem semmisítik meg az OpenBioMaps webes felületén végzett módosításokat.
 
 ```console
-foo@bar:~$ docker-compose pull 
-Pulling biomaps_db ... done
-Pulling mapserver  ... done
-Pulling app        ... done
-## Pulling phppgadmin ... done -- There is no PhpPgAdmin currently 
-Pulling adminer    ... done
-
-foo@bar:~$ docker-compose up -d
-Creating obm-composer_biomaps_db_1 ... done
-Creating obm-composer_mapserver_1  ... done
-Creating obm-composer_adminer_1    ... done
-## Creating obm-composer_phppgadmin_1 ... done
-Creating obm-composer_app_1        ... done
+foo@bar:~$ docker compose pull
+foo@bar:~$ docker compose up -d
 ```
+
+A telepítő a Docker Compose-bővítményt (`docker compose`) és a régi, önálló parancsot (`docker-compose`) egyaránt támogatja. Régebbi gazdagépeken az oldal parancsaiban cserélje a `docker compose` parancsot `docker-compose`-ra.
+
+A `docker compose pull` letölti az összes szolgáltatás új lemezképét, beleértve az `app`, a `background-worker` és az `obm-server-api` szolgáltatást is. A `docker compose up -d` újra létrehozza azokat a konténereket, amelyek lemezképe megváltozott.
 
 Csak egy konténer frissítése:
 
 ```console
-foo@bar:~$ docker-compose up -d app
+foo@bar:~$ docker compose pull app
+foo@bar:~$ docker compose up -d app
+```
+
+A `background-worker` ugyanazt az alkalmazás-lemezképet használja, mint az `app`. Az alkalmazás frissítése után hozza létre újra mindkét szolgáltatást:
+
+```console
+foo@bar:~$ docker compose up -d app background-worker
+```
+
+A szolgáltatások állapotának és a háttérfeldolgozó naplóinak ellenőrzése:
+
+```console
+foo@bar:~$ docker compose ps
+foo@bar:~$ docker compose logs -f background-worker
 ```
 
 ## A projektek e-mail-beállításai
@@ -255,7 +352,7 @@ A Docker-hálózatok és IP-címek a következőképpen deríthetők ki:
 docker container ls
 ```
 
-Keresse meg az ``obm-composer_app_1`` konténert.
+Keresse meg az `app` konténert (neve a Docker Compose verziójától függően `app_1` vagy `app-1` végű).
 
 ```console
 docker inspect xxxxx_obm-composer_app_1
@@ -502,20 +599,20 @@ psql: FATAL:  no pg_hba.conf entry for host "xxxxxxx", user "gisadmin", database
 ### A Docker leállítása
 
 ```console
-foo@bar:~$ docker-compose down
+foo@bar:~$ docker compose down
 ```
 
 ### Minden törlése, beleértve az adatokat és adatbázisokat is
 
 ```console
-foo@bar:~$ docker-compose down -v
+foo@bar:~$ docker compose down -v
 ```
 
 
 ### Parancsértelmező elérése a konténer lemezképében
 
 ```console
-foo@bar:~$ docker-compose exec app bash
+foo@bar:~$ docker compose exec app bash
 ```
 
 Itt az **app** szolgáltatást nyitottuk meg. A szolgáltatások nevei a
@@ -525,12 +622,12 @@ docker-compose.yml fájlban találhatók.
 ### Naplók olvasása
 
 ```console
-foo@bar:~$ docker-compose logs -f app
+foo@bar:~$ docker compose logs -f app
 ```
 
 ### A pg_top használata
 
-docker-compose exec -u postgres <service_name> pg_top
+docker compose exec -u postgres <service_name> pg_top
 
 ### Az alkalmazás újraindítása
 
@@ -538,7 +635,7 @@ Ne indítsa újra az Apache szervert a Docker parancsértelmezőjéből, hanem a
 konténeren kívülről:
 
 ```console
-foo@bar:~$ docker-compose restart app
+foo@bar:~$ docker compose restart app
 ```
 
 ### Nagy mennyiségű régi, használaton kívüli Docker-lemezkép eltávolítása
@@ -610,7 +707,7 @@ https://github.com/OpenBioMaps/scripts
 
 ### Tábla mentése az adatbázisból Docker használatával
 
-docker-compose exec -T biomaps_db bash -c "pg_dump -U biomapsadmin --table public.YOUR_TABLE gisdata" > YOUR_TABLE.sql
+docker compose exec -T biomaps_db bash -c "pg_dump -U biomapsadmin --table public.YOUR_TABLE gisdata" > YOUR_TABLE.sql
 
 
 

@@ -54,6 +54,15 @@ megbízható adminisztrátorok számára szabad engedélyezni.
    jelentkeznie az adminisztrációs jogosultságai megváltozása után.
 
 
+.. _admin-sidebar-pins:
+
+Adminisztrációs oldalak kitűzése az oldalsávra
+==============================================
+
+Az adminisztrációs oldal (a gépház) minden kártyáján van egy kitűzés gomb. Egy oldal kitűzése felveszi azt a profil oldalsávjába, ugyanazon kategóriák alá, amelyekben az adminisztrációs oldalon megjelenik. A több kategóriába tartozó oldalnak egyetlen kitűzési állapota van, és minden kategóriában megjelenik. A kitűzött oldal nélküli kategóriák nem jelennek meg. Az adminisztrációs oldalon a kártya továbbra is elérhető marad.
+
+A kitűzések személyesek: minden adminisztrátornak saját listája van, amelyet a projektbeállításokkal együtt mentünk. A kitűzés soha nem ad hozzáférést az oldalhoz, és azok az oldalak, amelyeket a felhasználó nem nyithat meg, akkor is rejtve maradnak, ha korábban kitűzték őket. Ha ugyanaz a felhasználó két munkamenetben egyszerre módosítja a kitűzéseket, az utolsó mentés érvényesül.
+
 .. _database-columns:
 
 Adatbázistáblák és -oszlopok

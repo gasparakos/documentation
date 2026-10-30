@@ -33,6 +33,20 @@ Egyéni modulok tölthetők fel és adhatók hozzá a projekthez. A fejlesztőkn
 
 Az egyéni modulok kódját üzembe helyezés előtt felül kell vizsgálni. A modul az alkalmazás részeként fut, és hozzáférhet a projekt adataihoz, a hitelesített felhasználó munkamenetéhez és az adatbázis-kapcsolatokhoz.
 
+#### A modulosztály szerződése
+
+A modulok a `module` alaposztályt bővítik. Az alkalmazás a modult `new your_module($method, $stored_params, $runtime_arguments)` formában hozza létre. Az örökölt konstruktor a tárolt paramétereket a `$this->params` tulajdonságba normalizálja, ellenőrzi a hozzáférést, majd meghívja a kért metódust. A modul tartsa meg az örökölt konstruktort, és ne definiáljon sajátot, hogy ezek az ellenőrzések mindig lefussanak.
+
+- Az automatikus horgok csak akkor futnak le, ha a nevük szerepel a modulmetaadatok `Methods` listájában. A horgok felderítése nem használ PHP-reflexiót.
+- A `Module-type` értéke `table`, `project` vagy `both`. Válassza a legszűkebb megfelelő hatókört.
+- A `$guarded_methods` listában szereplő metódusokhoz bejelentkezett felhasználó szükséges. A `$master_access_only` listában szereplő metódusokhoz mester-hozzáférés kell; az `adminPage` alapértelmezés szerint csak mesterek számára érhető el.
+- Az `$ajax_allowed_actions` az örökölt AJAX-kezelést a felsorolt nyilvános műveletekre korlátozza, az `$ajax_deps` pedig az ahhoz betöltendő fájlokat sorolja fel.
+- Az opcionális, védett `prepare_module()` és `finish_module()` metódus a sikeres meghívás előtt, illetve után fut le. A `prepare_module()` a hívást `false` visszaadásával megszakíthatja.
+- Az `init()` a regisztráció után és egy engedélyezett regisztráció frissítése után fut, ezért idempotensnek kell lennie. Az `uninstall()` (vagy az örökölt `destroy()`) a letiltás előtt fut, és az `['error' => 'message']` visszaadásával megszakíthatja azt. A deklarált függőségek ellenőrzéséhez hívja meg a szülő metódusokat.
+- A rendszermodulok a `resources/includes/modules/`, a projektlokális modulok és felülbírálások a `resources/local/includes/modules/` könyvtárba kerülnek.
+
+A kommentezett referenciamegvalósítás a `resources/includes/modules/examples/official_module_template.php` fájl.
+
 ### Modul-hozzáférés
 
 Ugyanaz a modul többször is hozzáadható eltérő hozzáférési beállításokkal vagy paraméterekkel. Ez lehetővé teszi az adminisztrátorok számára, hogy különböző konfigurációkat biztosítsanak különböző felhasználókhoz, csoportokhoz vagy táblákhoz.
@@ -271,11 +285,33 @@ tartalmazó projektbe, majd nyisson meg egy webes űrlapot, és kérjen le egy
 API-űrlapot a mobilklienssel. Ellenőrizze, hogy a rögzített lista a kódját
 tárolja mind a beágyazott, mind a kifejezéstáblát használó változatban.
 
+### `classification`
+
+A `classification` modul a projekt kontrollált szótárait (osztályozási sémáit) kezeli. Egy séma többnyelvű címkékkel és állandó azonosítókkal (UUID) rendelkező fogalmakat tartalmaz. A sémák lehetnek laposak vagy hierarchikusak. Egy fogalom több sémához is tartozhat, sémán belül lehetnek szélesebb (szülő) fogalmai, és kapcsolódhat rokon fogalmakhoz. A fogalmak és a tagságok archiválhatók és visszaállíthatók, a használaton kívüli fogalmak pedig törölhetők.
+
+A modulnak saját telepítése és adminisztrációs oldala van, és nem függ a `geometry_management` modultól. A modul engedélyezése telepíti vagy ellenőrzi az osztályozási sémát a GIS-adatbázisban (a `system.classification_installation` táblában rögzítve), a meglévő adatok újralétrehozása vagy újraosztályozása nélkül. Az inicializálás idempotens: ha meghiúsul, javítsa a problémát, és engedélyezze újra a modult. A telepítés visszautasítja az inkompatibilis meglévő sémát ahelyett, hogy módosítaná.
+
+A szótárkezelés projektmesterek számára korlátozott. Az adminisztrációs oldal lehetőségei:
+
+- sémák létrehozása és szerkesztése;
+- fogalmak létrehozása, címkéik szerkesztése, és meglévő fogalom hozzáadása egy másik sémához;
+- szélesebb és rokon fogalmak hozzáadása és eltávolítása;
+- fogalmak és tagságok archiválása, visszaállítása, valamint a használaton kívüliek törlése; és
+- fogalmak keresése és az eredmények lapozása.
+
+A modul letiltását akadályozza, ha egy aktív vagy közzétett webes, fájlos vagy API-űrlap osztályozási mezőt tartalmaz; a hibaüzenet felsorolja az érintett űrlapokat. A letiltás megőrzi az összes osztályozási adatot, az újbóli engedélyezés pedig újra elérhetővé teszi azokat. Automatikus eltávolító szkript nincs, a korábbi verzióra való visszalépéshez átvizsgált biztonsági mentés szükséges.
+
+**Paraméterek:** Nincsenek.
+
+**Kiadási állapot:** ez a kiadás a szótárkezelést tartalmazza. Az osztályozások hozzárendelése mintavételi egységekhez és megfigyelésekhez, a szótárak CSV-importja, az osztályozási mezők a feltöltési űrlapokban, valamint a szövegszűrők tervezettek, és még nem érhetők el.
+
 ### `geometry_management`
 
 A `geometry_management` modul újrafelhasználható térbeli alakzatokat kezel. A felhasználók pontokat, vonalakat és poligonokat tölthetnek fel, megoszthatják őket más felhasználókkal, valamint webes vagy fájlból történő feltöltéskor rekordgeometriaként használhatják őket. Az elérhető feltöltési geometriákat a mobilalkalmazás is letöltheti és megjelenítheti.
 
-Az újonnan feltöltött alakzatok alapértelmezés szerint nem láthatók más felhasználók számára. A projektadminisztrátorok jogosultságot adhatnak az egyes alakzatok lekérdezésekhez vagy adatfeltöltésekhez való használatára. A felhasználók a profiloldaluk **Megosztott geometriák** blokkjában kezelik a megosztott alakzatokat; a projektadminisztrátorok a `geometry_management` adminisztrációs lapján kezelik a jogosultságokat.
+Az újonnan feltöltött alakzatok alapértelmezés szerint nem láthatók más felhasználók számára. A projektadminisztrátorok jogosultságot adhatnak az egyes alakzatok lekérdezésekhez vagy adatfeltöltésekhez való használatára. A felhasználók az alakzatokat a profiljuk **Megosztott poligonok** oldalán kezelik. Az oldalon **Saját geometriák** és **Közösségi nyilvános geometriák** lap, keresőmező, a használat (lekérdezés vagy feltöltés) és a geometriatípus szerinti szűrők, GeoJSON-letöltés, kijelölés alapú törlés, valamint új térbeli fájlok feltöltésére szolgáló űrlap található. A projektadminisztrátorok a projekt összes geometriáját az **Összes poligon** adminisztrációs lapon látják, és az egyes alakzatokat kijelölt projektfelhasználókhoz rendelhetik.
+
+A modul a `classification` modultól függetlenül működik.
 
 Ha egy feltöltési űrlap `obm_geometry` mezőt használ, annak térképvezérlője felkínálhatja a **Geometria listából** lehetőséget. Egy elnevezett alakzat kiválasztása beilleszti annak WKT-geometriáját a feltöltési mezőbe.
 

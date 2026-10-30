@@ -53,6 +53,37 @@ Custom module code must be reviewed before deployment. A module runs as part
 of the application and may have access to project data, the authenticated
 user's session, and database connections.
 
+#### Module class contract
+
+Modules extend the `module` base class. The application constructs a module as
+`new your_module($method, $stored_params, $runtime_arguments)`. The inherited
+constructor normalizes the stored parameters into `$this->params`, checks
+access, and calls the requested method. A module should keep the inherited
+constructor instead of defining its own, so that these checks always run.
+
+- Automatic hooks run only if their names are listed in the `Methods` list of
+  the module metadata. Hook discovery does not use PHP reflection.
+- `Module-type` is `table`, `project`, or `both`. Choose the narrowest scope
+  that applies.
+- Methods listed in `$guarded_methods` require a signed-in user. Methods listed
+  in `$master_access_only` require master access; `adminPage` is master-only by
+  default.
+- `$ajax_allowed_actions` restricts the inherited AJAX dispatch to the listed
+  public actions, and `$ajax_deps` lists the includes loaded for it.
+- The optional protected methods `prepare_module()` and `finish_module()` run
+  before and after a successful dispatch. `prepare_module()` can cancel the
+  call by returning `false`.
+- `init()` runs after registration and after an enabled registration is
+  updated, so it must be idempotent. `uninstall()` (or the inherited
+  `destroy()`) runs before disabling and can abort it by returning
+  `['error' => 'message']`. Call the parent methods to enforce declared
+  dependencies.
+- System modules are installed in `resources/includes/modules/`; project-local
+  modules and overrides are installed in `resources/local/includes/modules/`.
+
+The commented reference implementation is
+`resources/includes/modules/examples/official_module_template.php`.
+
 ### Module access
 
 The same module can be added more than once with different access settings or
@@ -283,6 +314,46 @@ existing records, then open a web form and retrieve an API form through the
 mobile client. Verify that a fixed list stores its code with both embedded
 and terms-backed choices.
 
+### `classification`
+
+The `classification` module manages controlled vocabularies (classification
+schemes) for a project. A scheme contains concepts with multilingual labels and
+stable identifiers (UUIDs). Schemes can be flat or hierarchical. A concept can
+belong to several schemes, can have broader (parent) concepts within a scheme,
+and can be linked to related concepts. Concepts and memberships can be
+archived and restored, and unused concepts can be deleted.
+
+The module has its own installation and administration page and does not
+depend on `geometry_management`. Enabling the module installs or validates the
+classification schema in the GIS database (recorded in
+`system.classification_installation`) without recreating or reclassifying
+existing data. Initialization is idempotent: if it fails, correct the problem
+and enable the module again. The installation rejects an incompatible existing
+schema instead of changing it.
+
+Vocabulary administration is restricted to project masters. The administration
+page provides:
+
+- creating and editing schemes;
+- creating concepts, editing their labels, and adding an existing concept to
+  another scheme;
+- adding and removing broader and related concepts;
+- archiving, restoring, and deleting unused concepts and memberships; and
+- searching concepts and paging through the results.
+
+Disabling the module is blocked while an active or published web, file, or API
+form contains a classification field; the error message lists the affected
+forms. Disabling preserves all classification data and re-enabling makes it
+available again. There is no automatic removal script, and rolling back to an
+older version requires a reviewed backup.
+
+**Parameters:** None.
+
+**Release status:** this release provides vocabulary management. Assigning
+classifications to sampling units and observations, vocabulary CSV import,
+classification fields in upload forms, and the text filters are planned and not
+yet available.
+
 ### `geometry_management`
 
 The `geometry_management` module manages reusable spatial shapes. Users can
@@ -292,9 +363,15 @@ can also be downloaded and displayed by the mobile application.
 
 Newly uploaded shapes are not visible to other users by default. Project
 administrators can grant permission to use each shape for queries or data
-uploads. Users manage shared shapes through the **Shared geometries** block on
-their profile page; project administrators manage permissions through the
-`geometry_management` administration tab.
+uploads. Users manage shapes on the **Shared polygons** page of their profile.
+It has a **My geometries** tab and a **Community public geometries** tab, a
+search box, filters for the use (query or upload) and the geometry type,
+GeoJSON download, selection based deletion, and a form for uploading new
+spatial files. Project administrators see all geometries of the project on the
+**All polygons** administration tab and can assign each shape to selected
+project users.
+
+The module works independently of the `classification` module.
 
 If an upload form uses an `obm_geometry` field, its map control can offer a
 **Geometry from list** option. Selecting a named shape inserts its WKT

@@ -48,6 +48,23 @@ executable code should be restricted to trusted administrators.
    change.
 
 
+.. _admin-sidebar-pins:
+
+Pinning administration pages to the sidebar
+===========================================
+
+Every card on the administration page (the engine room) has a pin button.
+Pinning a page adds it to the profile sidebar, under the same categories in
+which it appears on the administration page. A page that belongs to several
+categories has a single pin state and appears in each of them. Categories
+without pinned pages are not shown. The card on the administration page remains
+available.
+
+Pins are personal: each administrator has their own list, which is saved with
+the project options. Pinning a page never grants access to it, and pages that
+the user cannot open are hidden even if they were pinned earlier. If the same
+user changes the pins in two sessions at the same time, the last save wins.
+
 .. _sql-columns-vs-openbiomaps-columns:
 
 Database tables and columns

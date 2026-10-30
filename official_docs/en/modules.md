@@ -363,7 +363,7 @@ can also be downloaded and displayed by the mobile application.
 
 Newly uploaded shapes are not visible to other users by default. Project
 administrators can grant permission to use each shape for queries or data
-uploads. Users manage shapes on the **Shared polygons** page of their profile.
+uploads. Users manage shapes on the **Shared geometries** page of their profile.
 It has a **My geometries** tab and a **Community public geometries** tab, a
 search box, filters for the use (query or upload) and the geometry type,
 GeoJSON download, selection based deletion, and a form for uploading new
